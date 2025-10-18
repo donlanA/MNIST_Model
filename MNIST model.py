@@ -2,6 +2,16 @@ import os
 import numpy as np
 from PIL import Image
 
+## Paths
+train_path = r".\mnist_png\training"
+test_path = r".\mnist_png\testing"
+actual_test_path = r".\mnist_png\actual_testing"
+
+result_file_path = f"411185030.txt"
+
+## Mode change
+mode = "actualtest"  
+
 ## Loading data
 def load_mnist_data(base_path):
     data = []
@@ -20,8 +30,8 @@ def load_mnist_data(base_path):
                 
                 # to numPy arr
                 with Image.open(file_path) as img:
-                    img = img.convert('L')  #  to grayscale
-                    img_array = np.array(img).flatten() / 255.0  # Normalize
+                    img = img.convert('L')  #  Grayscale 0-255
+                    img_array = np.array(img).flatten() / 255.0  # Flatten and normalize
                 
                 # Append to data and labels list
                 data.append(img_array)
@@ -33,36 +43,29 @@ def load_mnist_data(base_path):
 
     return data, labels
 
-## Dir
-train_path = r".\mnist_png\training"
-test_path = r".\mnist_png\testing"
-
-def predictions_to_file(test_path, predictions, filename):
-    # Create file with student ID as its name
-    with open(filename, 'w') as file:
-        # Iterate through each image and write filename and prediction
-        for img_name, prediction in predictions:
-            file.write(f"{img_name} {prediction}\n")
-
-## Initialize Parameters
+## One-hot encoding (number to vector) for labels
 def one_hot_encode(labels, num_classes=10):
     one_hot = np.zeros((labels.size, num_classes))
     one_hot[np.arange(labels.size), labels] = 1
     return one_hot
 
 ## Activation Functions
+# Sigmoid for hidden layer
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
+# Sigmoid Derivative for backpropagation
 def sigmoid_derivative(x):
     return x * (1 - x)
 
+# Softmax for output layer
 def softmax(x):
     exp_values = np.exp(x - np.max(x, axis=1, keepdims=True))
     return exp_values / (np.sum(exp_values, axis=1, keepdims=True) + 1e-9)
 
 ## Forward pass
 def forward_pass(X):
+    # dot products and activations
     z_hidden = np.dot(X, weights_input_hidden) + bias_hidden
     a_hidden = sigmoid(z_hidden)
 
@@ -79,7 +82,7 @@ def cross_entropy_loss(y_true, y_pred):
     n_samples = y_true.shape[0]
     epsilon = 1e-9  
     
-    # log loss
+    # -log(true prob + epsilon)
     log_preds = -np.log(y_pred[range(n_samples), y_true] + epsilon)
     loss = np.sum(log_preds) / n_samples
     return loss
@@ -133,10 +136,15 @@ def load_model(file_path):
     weights_hidden_output = data['weights_hidden_output']
     bias_output = data['bias_output']
     print("Model is loaded!")
+    
+# Create file for prediction results
+def predictions_to_file(predictions, filename):
+    with open(filename, 'w') as file:
+        for img_name, prediction in predictions:
+            file.write(f"{img_name} {prediction}\n")
+
 
 ## Train and test
-mode = "actualtest"  ## Mode change
-
 if mode == "train":
     # Load
     train_data, train_labels = load_mnist_data(train_path)
@@ -223,13 +231,6 @@ elif mode == "test":
 elif mode == "actualtest":
     load_model(r".\mnist_model.npz")
 
-    # Dir if test
-    actual_test_path = r".\mnist_png\actual_testing"  # Adjust to your actual path
-    
-    # Write predictions to a text file
-    student_id = "411185030"  # Replace with your student ID
-    result_file_path = f"{student_id}.txt"
-
     # Prepare to store predictions
     predictions = []
     correct = 0
@@ -254,11 +255,7 @@ elif mode == "actualtest":
             # true_label = int(file_name.split(".")[0][-1])  # Assuming last character before ".png" is the label
 
             # Collect predictions and filenames
-            # predictions.append((file_name, test_prediction))
             predictions.append((file_name.split(".")[0], test_prediction))
-            
-            with open(result_file_path, "a") as f:
-                f.write(f"{file_name.split('.')[0]} {test_prediction}\n")
                 
             # Update accuracy calculations if true label is available
             # if true_label == test_prediction:
@@ -269,7 +266,7 @@ elif mode == "actualtest":
     # accuracy = correct / total * 100
     # print(f'Actual Test Accuracy: {accuracy:.2f}%')
 
-    # predictions_to_file(actual_test_path, predictions, result_file_path)
+    predictions_to_file(predictions, result_file_path)
     
     print(f"Predictions saved to {result_file_path}")
 
